@@ -1,15 +1,65 @@
 @import "tailwindcss";
+@import "@heroui/styles";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --card: #f8f8f8;
+  --input: #f8f8e8;
+  --card-2: #e8e8e8;
+
+  --primary: #f8c838;
+  --secondary: #080f17;
+
+  --strokedark: #b8b8b8;
+
+  --background: #d0d0d0;
+  --foreground: #080f17;
+
+  --background-2: #e8e8e8;
 }
 
 @theme inline {
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-input: var(--input);
+
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-strokedark: var(--strokedark);
+  --color-background-2: var(--background-2);
+
+  /* Supporting colors based on the dashboard */
+  --color-meta-1: #d32f2f;
+  --color-meta-2: #f8f8e8;
+  --color-meta-3: #10b981;
+  --color-meta-4: #282830;
+  --color-meta-5: #d0d0d0;
+  --color-meta-6: #f8c838;
+  --color-meta-7: #e8a900;
+  --color-meta-8: #f8c020;
+  --color-meta-9: #e0e0e0;
+  --color-meta-10: #080f17;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+.dark {
+  --card: #f8f8f8;
+  --input: #f8f8e8;
+  --card-2: #e8e8e8;
+
+  --primary: #f8c838;
+  --secondary: #080f17;
+
+  --strokedark: #b8b8b8;
+
+  --background: #d0d0d0;
+  --foreground: #080f17;
+
+  --background-2: #e8e8e8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +73,44 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Plain <button> defaults. Kept in @layer base so they can't override
+    HeroUI's component styles — unlayered rules would beat HeroUI's
+    @layer components rules on every HeroUI button. */
+@layer base {
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  button:hover {
+    outline: none;
+    /* box-shadow: 0 0 0 2px var(--primary); */
+    transition: box-shadow 0.2s ease-in-out;
+  }
+
+  button:active {
+    transform: scale(0.98);
+  }
+}
+
+/* HeroUI v3 theme alignment.
+    Maps HeroUI's semantic tokens onto the app's existing palette so HeroUI
+    components match the current design. Only HeroUI's own variables are
+    touched — app classes (bg-primary, bg-card, ...) still resolve to the
+    tokens defined above and are unchanged. Kept unlayered so this wins over
+    HeroUI's @layer base defaults. */
+:root {
+  --accent: var(--primary);
+  --accent-foreground: var(--secondary);
+  --surface: var(--card);
+  --surface-foreground: var(--foreground);
+  --overlay: var(--card);
+  --overlay-foreground: var(--foreground);
+  --focus: var(--primary);
+  --link: var(--primary);
 }
