@@ -12,6 +12,10 @@ import {
   MdAttachMoney,
   MdSettings,
   MdShield,
+  MdPointOfSale,
+  MdPeople,
+  MdInventory,
+  MdRequestQuote,
 } from "react-icons/md";
 import { usePathname } from "next/navigation";
 
@@ -41,9 +45,29 @@ function SideBar() {
       icon: MdGridView,
     },
     {
-      name: "Transactions",
-      href: "/transactions",
+      name: "Sales",
+      href: "/operations",
       icon: MdReceiptLong,
+    },
+    {
+      name: "POS",
+      href: "/pos",
+      icon: MdPointOfSale,
+    },
+    {
+      name: "Customers",
+      href: "/customers",
+      icon: MdPeople,
+    },
+    {
+      name: "Inventory",
+      href: "/inventory",
+      icon: MdInventory,
+    },
+    {
+      name: "Quotations",
+      href: "/quotations",
+      icon: MdRequestQuote,
     },
     {
       name: "Reports",

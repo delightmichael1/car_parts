@@ -1,0 +1,1 @@
+import DashboardLayout from "@/layout/DashboardLayout"; import RecordForm from "@/components/shared/RecordForm"; export default function NewCustomer(){return <DashboardLayout><div className="p-5 md:p-8"><RecordForm type="Customer"/></div></DashboardLayout>}
