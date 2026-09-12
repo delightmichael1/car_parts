@@ -1,7 +1,10 @@
-import { ReactNode, useEffect } from "react";
 import { useRouter } from "next/router";
+import PreLoader from "@/components/Preloader";
 import AuthHero from "@/components/auth/AuthHero";
-import useDashboardStore from "@/stores/useDashboardStore";
+import useDeviceInfo from "@/hooks/useDeviceInfo";
+import { useSearchParams } from "next/navigation";
+import { ReactNode, useEffect, useState } from "react";
+import usePreferenceStorage from "@/hooks/usePreferenceStorage";
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -9,16 +12,30 @@ type AuthLayoutProps = {
 
 function AuthLayout({ children }: AuthLayoutProps) {
   const router = useRouter();
-  const accessToken = useDashboardStore((state) => state.accessToken);
+  const params = useSearchParams();
+  const { getDeviceInfo } = useDeviceInfo();
+  const { getPreference } = usePreferenceStorage();
+  const [isPageLoading, setIsPageLoading] = useState(false);
+
+  const fp = params.get("fp");
+  const redirectPath = fp ? `/${fp.replace(/^\/+/, "")}` : "/";
 
   useEffect(() => {
-    if (accessToken) {
-      router.replace("/");
-    }
-  }, [accessToken, router]);
+    (async () => {
+      await getDeviceInfo();
+      setIsPageLoading(true);
+      await getPreference("X-SIG")
+        .then((auth) => {
+          if (auth || auth !== null) router.replace(redirectPath);
+        })
+        .finally(() => {
+          setIsPageLoading(false);
+        });
+    })();
+  }, [redirectPath]);
 
-  if (accessToken) {
-    return null;
+  if (isPageLoading) {
+    return <PreLoader />;
   }
 
   return (

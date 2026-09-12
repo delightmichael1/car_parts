@@ -7,6 +7,7 @@ import { RiArrowLeftLine } from "react-icons/ri";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthLayout from "@/layout/AuthLayout";
 import { useAxios } from "@/hooks/useAxios";
+import { apiErrorMessage } from "@/lib/errors";
 
 function ForgotPasswordOtpForm() {
   const router = useRouter();
@@ -26,10 +27,9 @@ function ForgotPasswordOtpForm() {
       router.push(
         `/auth/renew-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.danger("That code didn't work", {
-        description:
-          error?.response?.data?.message || "Check the code and try again",
+        description: apiErrorMessage(error, "Check the code and try again"),
       });
     } finally {
       setIsSubmitting(false);
@@ -95,7 +95,7 @@ function ForgotPasswordOtpForm() {
         </Button>
 
         <p className="text-center text-xs text-gray-500">
-          Didn't get it?{" "}
+          Didn&apos;t get it?{" "}
           <button
             type="button"
             onClick={resend}

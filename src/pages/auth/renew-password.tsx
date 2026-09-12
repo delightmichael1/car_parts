@@ -15,6 +15,7 @@ import { RiLockLine, RiEyeLine, RiEyeOffLine } from "react-icons/ri";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthLayout from "@/layout/AuthLayout";
 import { useAxios } from "@/hooks/useAxios";
+import { apiErrorMessage } from "@/lib/errors";
 
 const schema = Yup.object({
   password: Yup.string()
@@ -48,10 +49,9 @@ function RenewPasswordForm() {
           description: "Sign in with your new password",
         });
         router.replace("/auth/signin");
-      } catch (error: any) {
+      } catch (error: unknown) {
         toast.danger("Couldn't update your password", {
-          description:
-            error?.response?.data?.message || "Try requesting a new code",
+          description: apiErrorMessage(error, "Try requesting a new code"),
         });
       } finally {
         setSubmitting(false);
@@ -63,7 +63,7 @@ function RenewPasswordForm() {
     <AuthLayout>
       <h2 className="mt-1 text-3xl font-bold text-black">Set a new password</h2>
       <p className="mt-2 text-sm text-gray-500">
-        Choose a password you haven't used before on this account.
+        Choose a password you haven&apos;t used before on this account.
       </p>
 
       <form onSubmit={formik.handleSubmit} className="mt-8 flex flex-col gap-4">

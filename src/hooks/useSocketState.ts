@@ -1,31 +1,11 @@
 import axios from "axios";
-import { Preferences } from "@capacitor/preferences";
 import { create } from "zustand";
 import { io, Socket } from "socket.io-client";
 import { immer } from "zustand/middleware/immer";
+import { Preferences } from "@capacitor/preferences";
+import useOfflineStore from "@/stores/useOfflineStore";
 import useDashboardStore from "@/stores/useDashboardStore";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import useOfflineStore from "@/stores/useOfflineStore";
-
-interface PayNowApprovedPayload {
-  type: "shop_wallet" | "ad_budget" | "patient_payment" | "shop_order";
-  reference: string;
-  amount: number;
-  message: string;
-  newBalance?: number;
-  relatedId?: string;
-  patientId?: string;
-  orderId?: string;
-  orderNumber?: string;
-  status?: string;
-}
-
-interface PayNowFailedPayload {
-  reference: string;
-  type: string;
-  relatedId: string;
-  message: string;
-}
 
 interface SocketState {
   socket: Socket | undefined;
@@ -33,12 +13,6 @@ interface SocketState {
   disconnect: () => void;
 }
 
-// Offline banner is driven by the Socket.IO connection: a live socket means
-// the server is reachable, so disconnects / failed reconnects mark the app
-// offline. Debounced 3s from the FIRST failure so brief reconnects (server
-// restarts) don't flash the banner, while ongoing reconnect attempts (which
-// keep emitting connect_error) still let the banner appear. Successful axios
-// requests also flip the store online (see useAxios).
 let offlineMarkTimer: ReturnType<typeof setTimeout> | undefined;
 let offlineMarkStart = 0;
 
@@ -62,9 +36,6 @@ const markSocketOnline = () => {
   useOfflineStore.getState().setOnline(true);
 };
 
-// If any other source confirms connectivity while the socket's offline timer
-// is still pending (e.g. a request succeeded during a socket blip), drop the
-// timer so the banner doesn't flash on.
 useOfflineStore.subscribe((state, prev) => {
   if (state.isOnline && !prev.isOnline) {
     offlineMarkStart = 0;
@@ -98,6 +69,7 @@ const useSocketState = create<SocketState>()(
     socket: undefined,
 
     connectToServer: (userId, deviceId) => {
+      console.log("######### conecting to server ##############");
       const accessToken = useDashboardStore.getState().accessToken;
       const socket = io(`${process.env.NEXT_PUBLIC_API_URL}`, {
         extraHeaders: {
@@ -158,6 +130,7 @@ const useSocketState = create<SocketState>()(
       });
 
       socket.on("connect", () => {
+        console.log("Socket Connected ###");
         markSocketOnline();
       });
 

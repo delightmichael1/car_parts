@@ -2,9 +2,7 @@ import { User } from "@/types/types";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
-interface UserStore extends User {}
-
-const useUserStore = create<UserStore>()(
+const useUserStore = create<User>()(
   immer((set, get) => ({
     id: "",
     first_name: "",
@@ -17,6 +15,7 @@ const useUserStore = create<UserStore>()(
     created_at: "",
     updated_at: "",
     online: false,
+    role: undefined,
   })),
 );
 

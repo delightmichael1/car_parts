@@ -11,16 +11,17 @@ interface DashboardSummaryResponse {
 
 export function useDashboardSummary() {
   const { secureAxios } = useAxios();
-  const secureAxiosRef = useRef(secureAxios);
-  secureAxiosRef.current = secureAxios;
-
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSummary = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const secureAxiosRef = useRef(secureAxios);
+
+  useEffect(() => {
+    secureAxiosRef.current = secureAxios;
+  }, [secureAxios]);
+
+  const load = useCallback(async () => {
     try {
       const { data } =
         await secureAxiosRef.current.get<DashboardSummaryResponse>(
@@ -35,8 +36,14 @@ export function useDashboardSummary() {
   }, []);
 
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
+    load();
+  }, [load]);
+
+  const fetchSummary = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    await load();
+  }, [load]);
 
   return { summary, isLoading, error, refetch: fetchSummary };
 }

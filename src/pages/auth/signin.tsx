@@ -13,9 +13,10 @@ import {
   toast,
 } from "@heroui/react";
 import { RiLockLine, RiEyeLine, RiEyeOffLine } from "react-icons/ri";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import AuthLayout from "@/layout/AuthLayout";
 import { useAxios } from "@/hooks/useAxios";
+import { apiErrorDetails } from "@/lib/errors";
 import useSessionTokens from "@/hooks/useSessionTokens";
 import useDashboardStore from "@/stores/useDashboardStore";
 
@@ -29,8 +30,11 @@ const schema = Yup.object({
 function SigninPage() {
   const router = useRouter();
   const { axios } = useAxios();
+  const params = useSearchParams();
+  const fp = params.get("fp");
   const { addTokens } = useSessionTokens();
   const [showPassword, setShowPassword] = useState(false);
+  const redirectPath = fp ? `/${fp.replace(/^\/+/, "")}` : "/";
 
   const formik = useFormik({
     initialValues: { email: "", password: "" },
@@ -43,14 +47,15 @@ function SigninPage() {
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
         });
-        router.replace("/");
-      } catch (error: any) {
-        const message =
-          error?.response?.status === 403
+        router.replace(redirectPath);
+      } catch (error: unknown) {
+        const { status, message } = apiErrorDetails(error);
+        const text =
+          status === 403
             ? "This account has been suspended"
-            : error?.response?.data?.message || "Invalid email or password";
+            : message || "Invalid email or password";
         toast.danger("Couldn't sign in", {
-          description: message,
+          description: text,
         });
       } finally {
         setSubmitting(false);

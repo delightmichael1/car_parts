@@ -15,6 +15,7 @@ import { RiMailLine, RiArrowLeftLine } from "react-icons/ri";
 import { useRouter } from "next/navigation";
 import AuthLayout from "@/layout/AuthLayout";
 import { useAxios } from "@/hooks/useAxios";
+import { apiErrorMessage } from "@/lib/errors";
 
 const schema = Yup.object({
   email: Yup.string()
@@ -38,10 +39,9 @@ function ForgotPasswordPage() {
         router.push(
           `/auth/forgot-password-otp?email=${encodeURIComponent(values.email)}`,
         );
-      } catch (error: any) {
+      } catch (error: unknown) {
         toast.danger("Couldn't send the code", {
-          description:
-            error?.response?.data?.message || "Try again in a moment",
+          description: apiErrorMessage(error, "Try again in a moment"),
         });
       } finally {
         setSubmitting(false);
@@ -63,8 +63,8 @@ function ForgotPasswordPage() {
         Reset your password
       </h2>
       <p className="mt-2 text-sm text-gray-500">
-        Enter the email on your account and we'll send a 6-digit code to verify
-        it's you.
+        Enter the email on your account and we&apos;ll send a 6-digit code to
+        verify it&apos;s you.
       </p>
 
       <form onSubmit={formik.handleSubmit} className="mt-8 flex flex-col gap-4">

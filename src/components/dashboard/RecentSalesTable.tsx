@@ -27,9 +27,14 @@ export function RecentSalesTable({ sales }: { sales: Sale[] }) {
           <Table.Body
             items={sales}
             renderEmptyState={() => (
-              <p className="py-8 text-center text-sm text-foreground/60">
-                No sales yet — completed sales will show up here.
-              </p>
+              <div className="py-8 text-center">
+                <p className="text-sm font-medium text-secondary">
+                  No completed sales yet
+                </p>
+                <p className="mt-1 text-xs text-secondary/55">
+                  Once a draft sale is completed, it will appear here.
+                </p>
+              </div>
             )}
           >
             {(sale) => (
