@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -12,11 +12,12 @@ import {
   TextAreaInput,
   TextInput,
 } from "@/components/shared/FormFields";
+import { OnlinePartSearch, ChosenPart } from "@/components/products/OnlinePartSearch";
 import { ErrorState, LoadingState } from "@/components/shared/PageState";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useAxios } from "@/hooks/useAxios";
 import { apiErrorMessage } from "@/lib/errors";
-import { Brand, Category } from "@/types/types";
+import { Brand, Category, Product } from "@/types/types";
 
 const schema = Yup.object({
   name: Yup.string().required("Product name is required"),
@@ -47,6 +48,8 @@ const schema = Yup.object({
 export default function NewProductPage() {
   const router = useRouter();
   const { secureAxios } = useAxios();
+  const [chosenPart, setChosenPart] = useState<ChosenPart | null>(null);
+  const [fitVehicleIds, setFitVehicleIds] = useState<string[]>([]);
 
   const { data, isLoading, error, refetch } = useApiResource(
     async (client) => {
@@ -69,6 +72,20 @@ export default function NewProductPage() {
   const categoryOptions = useMemo(() => data?.categories ?? [], [data]);
   const brandOptions = useMemo(() => data?.brands ?? [], [data]);
 
+  const applyChosenPart = (part: ChosenPart) => {
+    setChosenPart(part);
+    setFitVehicleIds(part.fitVehicleIds);
+    formik.setValues((values) => ({
+      ...values,
+      name: part.name,
+      sku: `${part.brandName.replace(/\s+/g, "")}-${part.article}`,
+      partNumber: part.article,
+      oemNumber: part.article,
+      brandId: part.brandId,
+      description: part.description,
+    }));
+  };
+
   const formik = useFormik({
     initialValues: {
       name: "",
@@ -88,23 +105,43 @@ export default function NewProductPage() {
     validationSchema: schema,
     onSubmit: async (values, { setSubmitting }) => {
       try {
-        await secureAxios.post("/products", {
-          name: values.name.trim(),
-          sku: values.sku.trim(),
-          categoryId: values.categoryId,
-          brandId: values.brandId || undefined,
-          partNumber: values.partNumber.trim() || undefined,
-          oemNumber: values.oemNumber.trim() || undefined,
-          costPrice: values.costPrice,
-          sellingPrice: values.sellingPrice,
-          quantity: Number(values.quantity),
-          minimumStockLevel: Number(values.minimumStockLevel),
-          unit: values.unit.trim().toUpperCase() || "UNIT",
-          description: values.description.trim() || undefined,
-          isActive: values.isActive,
-        });
+        const { data } = await secureAxios.post<{ product: Product }>(
+          "/products",
+          {
+            name: values.name.trim(),
+            sku: values.sku.trim(),
+            categoryId: values.categoryId,
+            brandId: values.brandId || undefined,
+            partNumber: values.partNumber.trim() || undefined,
+            oemNumber: values.oemNumber.trim() || undefined,
+            costPrice: values.costPrice,
+            sellingPrice: values.sellingPrice,
+            quantity: Number(values.quantity),
+            minimumStockLevel: Number(values.minimumStockLevel),
+            unit: values.unit.trim().toUpperCase() || "UNIT",
+            description: values.description.trim() || undefined,
+            isActive: values.isActive,
+          },
+        );
+
+        let linked = 0;
+        for (const vehicleId of fitVehicleIds) {
+          try {
+            await secureAxios.post("/compatibilities", {
+              productId: data.product.id,
+              vehicleId,
+            });
+            linked++;
+          } catch {
+            // a failed fitment link must not undo the created product
+          }
+        }
+
         toast.success("Product added", {
-          description: `${values.name} is now in the catalog.`,
+          description:
+            linked > 0
+              ? `${values.name} was added and linked to ${linked} vehicle${linked === 1 ? "" : "s"}.`
+              : `${values.name} is now in the catalog.`,
         });
         router.push("/products");
       } catch (error: unknown) {
@@ -142,10 +179,24 @@ export default function NewProductPage() {
         ) : error ? (
           <ErrorState message={error} onRetry={refetch} />
         ) : (
-          <form
-            onSubmit={formik.handleSubmit}
-            className="flex flex-col gap-6 rounded-[24px] border border-black/5 bg-card p-5 md:p-8"
-          >
+          <div className="flex flex-col gap-6">
+            <OnlinePartSearch
+              brands={brandOptions}
+              onBrandsRefreshed={refetch}
+              onChosen={applyChosenPart}
+            />
+
+            {chosenPart ? (
+              <p className="text-xs text-secondary/45">
+                Pre-filled from the online part “{chosenPart.brandName} ·{" "}
+                {chosenPart.article}”. Adjust the details and prices, then save.
+              </p>
+            ) : null}
+
+            <form
+              onSubmit={formik.handleSubmit}
+              className="flex flex-col gap-6 rounded-[24px] border border-black/5 bg-card p-5 md:p-8"
+            >
             <div className="grid gap-5 sm:grid-cols-2">
               <Field
                 label="Product name"
@@ -357,7 +408,8 @@ export default function NewProductPage() {
             >
               {formik.isSubmitting ? "Saving…" : "Save product"}
             </button>
-          </form>
+            </form>
+          </div>
         )}
       </div>
     </DashboardLayout>

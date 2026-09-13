@@ -55,6 +55,7 @@ export const useAxios = () => {
 
   const isCacheable = (url: string, data: unknown) =>
     !url.includes("/user/refresh") &&
+    !url.includes("/parts/") &&
     typeof data === "object" &&
     data !== null &&
     !(data instanceof Blob) &&

@@ -501,3 +501,25 @@ export interface BalanceSheetResponse {
   retainedEarnings: string;
   totalLiabilitiesAndEquity: string;
 }
+
+// ---------------------------------------------------------------------------
+// Online parts lookup (FAPI proxy)
+// ---------------------------------------------------------------------------
+
+export interface OnlinePart {
+  article: string;
+  description: string;
+  brand: string;
+  mfi: number;
+}
+
+export interface OnlineVehicleFit {
+  make: string;
+  model: string;
+  yearFrom: number;
+}
+
+export interface OnlinePartDetail extends OnlinePart {
+  attributes: Record<string, string>;
+  fitments: OnlineVehicleFit[];
+}
