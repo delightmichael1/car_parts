@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@heroui/react";
-import { MdSearch, MdCheck } from "react-icons/md";
+import { MdSearch } from "react-icons/md";
 import { useAxios } from "@/hooks/useAxios";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import {
@@ -117,8 +117,9 @@ export function OnlinePartSearch({
       }>("/parts/detail", { params: { article: part.article, mfi: part.mfi } });
       const detail = data.part ?? part;
 
+      const brandName = (detail.brand || part.brand || "").trim();
       const [brandId, vehicles] = await Promise.all([
-        resolveBrand(detail.brand || part.brand),
+        brandName ? resolveBrand(brandName) : Promise.resolve(""),
         secureAxiosRef.current
           .get<{ vehicles: Vehicle[] }>("/vehicles")
           .then((response) => response.data.vehicles)
@@ -129,7 +130,7 @@ export function OnlinePartSearch({
       const next: ChosenPart = {
         name: detail.description || part.description,
         article: detail.article || part.article,
-        brandName: detail.brand || part.brand,
+        brandName,
         brandId,
         description: detail.description || part.description,
         fitVehicleIds,
@@ -167,11 +168,15 @@ export function OnlinePartSearch({
 
       {chosen ? (
         <div className="flex items-center justify-between gap-2 rounded-xl bg-primary/10 px-3 py-2.5 text-sm">
-          <span className="flex min-w-0 items-center gap-2">
-            <MdCheck className="h-4 w-4 shrink-0 text-primary" />
+          <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium text-secondary">
-              {chosen.brandName} · {chosen.article} · {chosen.name}
+              {chosen.name}
             </span>
+            {(chosen.brandName || chosen.article) ? (
+              <span className="truncate text-[11px] text-secondary/50">
+                {[chosen.brandName, chosen.article].filter(Boolean).join(" · ")}
+              </span>
+            ) : null}
           </span>
           {chosen.fitVehicleIds.length > 0 ? (
             <span className="shrink-0 text-[11px] font-semibold text-secondary/60">
@@ -202,10 +207,11 @@ export function OnlinePartSearch({
             >
               <span className="min-w-0">
                 <span className="block truncate font-medium text-secondary">
-                  {part.brand} · {part.article}
+                  {part.description || part.article}
                 </span>
                 <span className="block truncate text-[11px] text-secondary/45">
-                  {part.description}
+                  {[part.brand, part.article].filter(Boolean).join(" · ") ||
+                    "Built-in catalog"}
                 </span>
               </span>
               <span className="shrink-0 text-xs font-semibold text-primary">
