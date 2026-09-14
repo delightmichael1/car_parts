@@ -54,6 +54,7 @@ interface CartLine {
 // Swap for `product.minimumStockLevel` if your Product type exposes it —
 // this is just a sane default so low stock is visible at a glance.
 const LOW_STOCK_THRESHOLD = 3;
+const VEHICLE_RESULTS_LIMIT = 20;
 
 export default function POSWorkspace() {
   const { secureAxios } = useAxios();
@@ -85,16 +86,30 @@ export default function POSWorkspace() {
   }, []);
 
   const debouncedQuery = useDebouncedValue(query, 350);
-  const debouncedVehicleQuery = useDebouncedValue(vehicleQuery, 300);
+  // Same debounce delay the Vehicles page uses for its own search field —
+  // keeping this in step so both surfaces feel the same to type into.
+  const debouncedVehicleQuery = useDebouncedValue(vehicleQuery, 350);
 
+  // Mirrors the Vehicles page's server-side search exactly (same `search`
+  // param on GET /vehicles, same debounce), instead of the previous
+  // approach of loading the whole fleet once and filtering/truncating it
+  // client-side on every keystroke.
   const { data: vehicleData, isLoading: isLoadingVehicles } = useApiResource(
-    async (client) => {
+    async (client, key) => {
+      const term = String(key ?? "").trim();
+      const params: Record<string, string | number> = {
+        page: 1,
+        limit: VEHICLE_RESULTS_LIMIT,
+      };
+      if (term) params.search = term;
       const response = await client.get<{ vehicles: Vehicle[]; total: number }>(
         "/vehicles",
+        { params },
       );
       return response.data.vehicles;
     },
     () => "We couldn't load vehicles right now.",
+    debouncedVehicleQuery,
   );
 
   const { data: lookupData, refetch: refetchLookups } = useApiResource(
@@ -170,16 +185,6 @@ export default function POSWorkspace() {
       ),
     [compatData],
   );
-
-  const filteredVehicles = useMemo(() => {
-    const term = debouncedVehicleQuery.trim().toLowerCase();
-    if (!term) return vehicles;
-    return vehicles.filter((vehicle) =>
-      [vehicle.make, vehicle.model, vehicle.engine, vehicle.variant]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(term)),
-    );
-  }, [vehicles, debouncedVehicleQuery]);
 
   const vehicleFiltered = useMemo(() => {
     if (!selectedVehicle) return products;
@@ -394,7 +399,7 @@ export default function POSWorkspace() {
               placeholder="Search a vehicle: make, model, engine…"
               aria-label="Search vehicles"
               variant="secondary"
-              className="w-full border-transparent bg-transparent px-0 py-0 text-base shadow-none outline-none focus:border-transparent focus:ring-0 placeholder:text-secondary/40"
+              className="w-full rounded-none border-transparent bg-transparent px-0 py-0 text-base shadow-none outline-none focus:border-transparent focus:ring-0 placeholder:text-secondary/40"
             />
           </label>
           {selectedVehicle ? (
@@ -412,34 +417,43 @@ export default function POSWorkspace() {
         <div className="flex gap-2 overflow-x-auto pb-1">
           {isLoadingVehicles ? (
             <p className="text-xs text-secondary/45">Loading vehicles…</p>
-          ) : filteredVehicles.length === 0 ? (
+          ) : vehicles.length === 0 ? (
             <p className="text-xs text-secondary/45">
-              No vehicles match &quot;{vehicleQuery}&quot;. Try a make or model.
+              {vehicleQuery.trim()
+                ? `No vehicles match "${vehicleQuery}". Try a make or model.`
+                : "No vehicles in your fleet yet — add some from the Vehicles page."}
             </p>
           ) : (
-            filteredVehicles.slice(0, 30).map((vehicle) => {
-              const selected = selectedVehicle?.id === vehicle.id;
-              return (
-                <button
-                  key={vehicle.id}
-                  type="button"
-                  onClick={() => setSelectedVehicle(vehicle)}
-                  className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition active:scale-95 ${
-                    selected
-                      ? "bg-secondary text-white shadow-sm"
-                      : "bg-black/5 text-secondary/70 hover:bg-black/10"
-                  }`}
-                >
-                  {selected ? (
-                    <MdCheckCircle className="h-4 w-4 text-primary" />
-                  ) : null}
-                  {vehicle.make} {vehicle.model}
-                  {vehicle.yearFrom
-                    ? ` · ${vehicle.yearFrom}${vehicle.yearTo ? `–${vehicle.yearTo}` : ""}`
-                    : ""}
-                </button>
-              );
-            })
+            <>
+              {vehicles.map((vehicle) => {
+                const selected = selectedVehicle?.id === vehicle.id;
+                return (
+                  <button
+                    key={vehicle.id}
+                    type="button"
+                    onClick={() => setSelectedVehicle(vehicle)}
+                    className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition active:scale-95 ${
+                      selected
+                        ? "bg-secondary text-white shadow-sm"
+                        : "bg-black/5 text-secondary/70 hover:bg-black/10"
+                    }`}
+                  >
+                    {selected ? (
+                      <MdCheckCircle className="h-4 w-4 text-primary" />
+                    ) : null}
+                    {vehicle.make} {vehicle.model}
+                    {vehicle.yearFrom
+                      ? ` · ${vehicle.yearFrom}${vehicle.yearTo ? `–${vehicle.yearTo}` : ""}`
+                      : ""}
+                  </button>
+                );
+              })}
+              {isLoadingVehicles ? (
+                <span className="flex shrink-0 items-center px-2 text-xs text-secondary/45">
+                  searching…
+                </span>
+              ) : null}
+            </>
           )}
         </div>
 
@@ -775,35 +789,6 @@ export default function POSWorkspace() {
                   </span>
                   <BiChevronDown className="w-4 h-4" />
                 </button>
-                {/* <Select
-                  selectedKey={customerId || null}
-                  onSelectionChange={(key) =>
-                    setCustomerId(key ? String(key) : "")
-                  }
-                  placeholder="Walk-in customer"
-                  className="gap-0"
-                  fullWidth
-                >
-                  <Select.Trigger className="min-h-0! bg-transparent! border-0! py-0! ps-0! pe-7! text-white! shadow-none!">
-                    <Select.Value className="text-sm! font-semibold! text-white!" />
-                    <Select.Indicator className="text-white/60" />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      {customers.map((customer) => (
-                        <ListBox.Item
-                          key={customer.id}
-                          id={customer.id}
-                          textValue={customer.name}
-                          className="text-black"
-                        >
-                          {customer.name}
-                          <ListBox.ItemIndicator />
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select> */}
               </div>
             </div>
 
