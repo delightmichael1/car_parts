@@ -1,10 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { MdSearch } from "react-icons/md";
-import { Input, toast } from "@heroui/react";
-import DashboardLayout from "@/layout/DashboardLayout";
-import { OperationsPage } from "@/components/shared/OperationsPage";
 import {
   DataTable,
   EmptyState,
@@ -13,12 +8,19 @@ import {
   MetricCard,
   StatusBadge,
 } from "@/components/shared/PageState";
-import { useApiResource } from "@/hooks/useApiResource";
+import { MdSearch } from "react-icons/md";
 import { useAxios } from "@/hooks/useAxios";
-import { PaymentModal } from "@/components/shared/PaymentModal";
+import { Input, toast } from "@heroui/react";
 import { apiErrorMessage } from "@/lib/errors";
+import { useEffect, useMemo, useState } from "react";
 import { formatDate, formatMoney } from "@/lib/format";
+import DashboardLayout from "@/layout/DashboardLayout";
+import { useApiResource } from "@/hooks/useApiResource";
+import { saleStatusTone, paymentTone } from "@/lib/status";
 import { Customer, Sale, SalesResponse } from "@/types/types";
+import { PaymentModal } from "@/components/shared/PaymentModal";
+import { OperationsPage } from "@/components/shared/OperationsPage";
+import { SaleDetailsModal } from "@/components/shared/SaleDetailsModal";
 
 type StatusFilter = "ALL" | "DRAFT" | "COMPLETED" | "CANCELLED";
 
@@ -28,6 +30,7 @@ export default function OperationsPageView() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [payingSale, setPayingSale] = useState<Sale | null>(null);
+  const [viewingSale, setViewingSale] = useState<Sale | null>(null);
 
   const { data, isLoading, error, refetch } = useApiResource(
     async (client) => {
@@ -77,24 +80,13 @@ export default function OperationsPageView() {
     .filter((sale) => sale.status === "COMPLETED")
     .reduce((sum, sale) => sum + Number.parseFloat(sale.balance), 0);
 
-  const saleStatusTone = (status: Sale["status"]) => {
-    if (status === "COMPLETED") return "emerald";
-    if (status === "CANCELLED") return "slate";
-    return "amber";
-  };
-
-  const paymentTone = (paymentStatus: Sale["paymentStatus"]) => {
-    if (paymentStatus === "PAID") return "emerald";
-    if (paymentStatus === "PARTIALLY_PAID") return "amber";
-    return "rose";
-  };
-
   const completeSale = async (sale: Sale) => {
     try {
       await secureAxios.post(`/sales/${sale.id}/complete`);
       toast.success("Sale completed", {
         description: `${sale.saleNumber} is now completed and stock was deducted.`,
       });
+      setViewingSale(null);
       refetch();
     } catch (error: unknown) {
       toast.danger("Couldn't complete the sale", {
@@ -109,6 +101,7 @@ export default function OperationsPageView() {
       toast.success("Sale cancelled", {
         description: `${sale.saleNumber} has been cancelled.`,
       });
+      setViewingSale(null);
       refetch();
     } catch (error: unknown) {
       toast.danger("Couldn't cancel the sale", {
@@ -222,9 +215,13 @@ export default function OperationsPageView() {
               totalItems={data?.total}
               rows={filtered.map((sale) => [
                 <div key="number" className="min-w-0">
-                  <p className="truncate font-medium text-secondary">
+                  <button
+                    type="button"
+                    onClick={() => setViewingSale(sale)}
+                    className="truncate font-medium text-secondary underline decoration-transparent decoration-2 underline-offset-2 transition hover:decoration-primary"
+                  >
                     {sale.saleNumber}
-                  </p>
+                  </button>
                   <p className="mt-0.5 text-[11px] text-secondary/45">
                     {sale.items.length} item{sale.items.length === 1 ? "" : "s"}
                   </p>
@@ -262,6 +259,13 @@ export default function OperationsPageView() {
                   ) : null}
                 </div>,
                 <div key="actions" className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewingSale(sale)}
+                    className="rounded-full bg-black/5 px-3 py-1.5 text-[11px] font-semibold text-secondary/60 transition hover:bg-black/10"
+                  >
+                    View
+                  </button>
                   {sale.status === "DRAFT" ? (
                     <>
                       <button
@@ -288,15 +292,27 @@ export default function OperationsPageView() {
                     >
                       Record payment
                     </button>
-                  ) : (
-                    <span className="text-xs text-secondary/40">—</span>
-                  )}
+                  ) : null}
                 </div>,
               ])}
             />
           </div>
         )}
       </OperationsPage>
+
+      {viewingSale ? (
+        <SaleDetailsModal
+          sale={viewingSale}
+          customer={customerById.get(viewingSale.customerId ?? "")}
+          onClose={() => setViewingSale(null)}
+          onComplete={completeSale}
+          onCancel={cancelSale}
+          onRecordPayment={(sale) => {
+            setViewingSale(null);
+            setPayingSale(sale);
+          }}
+        />
+      ) : null}
 
       {payingSale ? (
         <PaymentModal

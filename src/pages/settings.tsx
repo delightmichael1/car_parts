@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MdCheck, MdEdit } from "react-icons/md";
+import { MdCheck, MdDataset, MdEdit } from "react-icons/md";
 import { toast } from "@heroui/react";
 import DashboardLayout from "@/layout/DashboardLayout";
 import { OperationsPage } from "@/components/shared/OperationsPage";
@@ -30,6 +30,7 @@ const SETTING_HINTS: Record<string, string> = {
 
 export default function SettingsPage() {
   const { secureAxios } = useAxios();
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const { data, isLoading, error, refetch } = useApiResource(
     async (client) => {
@@ -66,6 +67,29 @@ export default function SettingsPage() {
       });
     } finally {
       setSaving((current) => ({ ...current, [setting.key]: false }));
+    }
+  };
+
+  const runSeed = async () => {
+    setIsSeeding(true);
+    try {
+      const { data } = await secureAxios.post<{
+        categories: number;
+        vehicles: number;
+        brands: number;
+      }>("/seed");
+      toast.success("Reference data seeded", {
+        description: `${data.categories} categories, ${data.vehicles} vehicles, ${data.brands} brands added.`,
+      });
+    } catch (error: unknown) {
+      toast.danger("Seed failed", {
+        description: apiErrorMessage(
+          error,
+          "Only administrators can seed reference data.",
+        ),
+      });
+    } finally {
+      setIsSeeding(false);
     }
   };
 
@@ -146,6 +170,32 @@ export default function SettingsPage() {
             })}
           </div>
         )}
+
+        <div className="flex  items-center justify-between gap-3 rounded-[20px] border border-black/5 bg-card p-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-secondary">
+              <MdDataset className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-secondary">
+                Reference data
+              </p>
+              <p className="text-[11px] text-secondary/45">
+                Seed the full catalog of brands, vehicles and categories.
+                Existing records are kept; parts are never auto-added.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={runSeed}
+            disabled={isSeeding}
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-secondary px-5 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
+          >
+            <MdDataset className="h-4 w-4" />
+            {isSeeding ? "Seeding…" : "Seed reference data"}
+          </button>
+        </div>
       </OperationsPage>
     </DashboardLayout>
   );

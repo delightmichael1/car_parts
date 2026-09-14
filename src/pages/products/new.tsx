@@ -75,12 +75,17 @@ export default function NewProductPage() {
   const applyChosenPart = (part: ChosenPart) => {
     setChosenPart(part);
     setFitVehicleIds(part.fitVehicleIds);
+    // Only prefill SKU / part numbers when the source returned a real code
+    // (e.g. an OEM article with digits); the built-in catalog only has names.
+    const hasNumber = /\d/.test(part.article);
     formik.setValues((values) => ({
       ...values,
       name: part.name,
-      sku: `${part.brandName.replace(/\s+/g, "")}-${part.article}`,
-      partNumber: part.article,
-      oemNumber: part.article,
+      sku: hasNumber
+        ? `${part.brandName.replace(/\s+/g, "")}-${part.article}`
+        : "",
+      partNumber: hasNumber ? part.article : "",
+      oemNumber: hasNumber ? part.article : "",
       brandId: part.brandId,
       description: part.description,
     }));

@@ -1,16 +1,35 @@
 "use client";
 
-import { ReactNode, useMemo, useState } from "react";
-import { MdAdd, MdDelete, MdDirectionsCar, MdEdit, MdLink } from "react-icons/md";
+import { ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  MdAdd,
+  MdDelete,
+  MdDirectionsCar,
+  MdEdit,
+  MdLink,
+} from "react-icons/md";
 import { Input, toast } from "@heroui/react";
 import DashboardLayout from "@/layout/DashboardLayout";
 import { OperationsPage } from "@/components/shared/OperationsPage";
-import { DataTable, EmptyState, ErrorState, LoadingState, MetricCard, StatusBadge } from "@/components/shared/PageState";
-import { Field, SelectInput, TextAreaInput, TextInput } from "@/components/shared/FormFields";
+import {
+  DataTable,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  MetricCard,
+  StatusBadge,
+} from "@/components/shared/PageState";
+import {
+  Field,
+  SelectInput,
+  TextAreaInput,
+  TextInput,
+} from "@/components/shared/FormFields";
 import { AsyncProductSelect } from "@/components/shared/AsyncProductSelect";
 import { AppModal } from "@/components/shared/AppModal";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useAxios } from "@/hooks/useAxios";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { apiErrorMessage } from "@/lib/errors";
 import {
   PartCompatibility,
@@ -31,6 +50,7 @@ const TYPE_LABELS: Record<VehicleType, string> = {
 
 export default function VehiclesPage() {
   const { secureAxios } = useAxios();
+  const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<VehicleType | "ALL">("ALL");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -38,10 +58,23 @@ export default function VehiclesPage() {
   const [fitmentsFor, setFitmentsFor] = useState<Vehicle | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
+  // The input stays wired to `query` so typing feels instant; the request
+  // only fires off `debouncedQuery`, ~350ms after the person stops typing.
+  const debouncedQuery = useDebouncedValue(query, 350);
+
   const { data, isLoading, error, refetch } = useApiResource(
     async (client) => {
+      const vehicleParams: any = { page, limit: 10 };
+      if (debouncedQuery != "") {
+        vehicleParams["search"] = debouncedQuery;
+      }
+      if (typeFilter !== "ALL") {
+        vehicleParams["vehicleType"] = typeFilter;
+      }
       const [vehicles, products, counts] = await Promise.all([
-        client.get<{ vehicles: Vehicle[]; total: number }>("/vehicles"),
+        client.get<{ vehicles: Vehicle[]; total: number }>("/vehicles", {
+          params: vehicleParams,
+        }),
         client.get<ProductsResponse>("/products", {
           params: { page: 1, limit: 100 },
         }),
@@ -59,20 +92,18 @@ export default function VehiclesPage() {
     () => "We couldn't load your vehicle fleet right now.",
   );
 
-  const vehicles = useMemo(() => data?.vehicles ?? [], [data]);
+  useEffect(() => {
+    refetch();
+  }, [page, debouncedQuery, typeFilter, refetch]);
 
-  const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    return vehicles.filter((vehicle) => {
-      if (typeFilter !== "ALL" && vehicle.vehicleType !== typeFilter) {
-        return false;
-      }
-      if (!term) return true;
-      return [vehicle.make, vehicle.model, vehicle.engine, vehicle.variant]
-        .filter(Boolean)
-        .some((value) => value!.toLowerCase().includes(term));
-    });
-  }, [vehicles, query, typeFilter]);
+  // A new search term or type filter can invalidate whatever page we were
+  // sitting on — jump back to page 1 so results aren't hidden behind an
+  // out-of-range page.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery, typeFilter]);
+
+  const vehicles = useMemo(() => data?.vehicles ?? [], [data]);
 
   const fitmentCount = useMemo(() => {
     const counts = new Map<string, number>();
@@ -83,8 +114,7 @@ export default function VehiclesPage() {
   }, [data]);
 
   const fitmentTotal = useMemo(
-    () =>
-      (data?.counts ?? []).reduce((sum, item) => sum + item.count, 0),
+    () => (data?.counts ?? []).reduce((sum, item) => sum + item.count, 0),
     [data],
   );
 
@@ -132,7 +162,7 @@ export default function VehiclesPage() {
               <MetricCard
                 label="Vehicles"
                 value={String(data?.total ?? 0)}
-                note={`${filtered.length} shown`}
+                note={`${data?.vehicles.length} shown`}
               />
               <MetricCard
                 label="Cars"
@@ -171,7 +201,7 @@ export default function VehiclesPage() {
                     placeholder="Search by make, model, or engine"
                     aria-label="Search vehicles"
                     variant="secondary"
-                    className="w-full border-transparent bg-transparent px-0 py-0 text-sm shadow-none outline-none focus:border-transparent focus:ring-0 placeholder:text-secondary/40"
+                    className="w-full rounded-none border-transparent bg-transparent px-0 py-0 text-sm shadow-none outline-none focus:border-transparent focus:ring-0 placeholder:text-secondary/40"
                   />
                 </label>
 
@@ -187,16 +217,21 @@ export default function VehiclesPage() {
                           : "text-secondary/55 hover:text-secondary"
                       }`}
                     >
-                      {key === "ALL"
-                        ? "All"
-                        : TYPE_LABELS[key as VehicleType]}
+                      {key === "ALL" ? "All" : TYPE_LABELS[key as VehicleType]}
                     </button>
                   ))}
                 </div>
               </div>
 
               <DataTable
-                headers={["Vehicle", "Type", "Years", "Engine", "Fitments", "Actions"]}
+                headers={[
+                  "Vehicle",
+                  "Type",
+                  "Years",
+                  "Engine",
+                  "Fitments",
+                  "Actions",
+                ]}
                 empty={
                   <EmptyState
                     title={query ? "No matching vehicles" : "No vehicles yet"}
@@ -207,68 +242,80 @@ export default function VehiclesPage() {
                     }
                   />
                 }
-                rows={filtered.map((vehicle) => [
-                  <div key="vehicle" className="min-w-0">
-                    <p className="truncate font-medium text-secondary">
-                      {vehicle.make} {vehicle.model}
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] text-secondary/45">
-                      {[vehicle.engine, vehicle.variant]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
-                    </p>
-                  </div>,
-                  <StatusBadge key="type" tone="blue">
-                    {TYPE_LABELS[vehicle.vehicleType]}
-                  </StatusBadge>,
-                  <span key="years" className="text-secondary/70">
-                    {vehicle.yearFrom || vehicle.yearTo
-                      ? `${vehicle.yearFrom ?? "—"} – ${vehicle.yearTo ?? "—"}`
-                      : "—"}
-                  </span>,
-                  <span key="engine" className="text-secondary/70">
-                    {vehicle.engine || "—"}
-                  </span>,
-                  <span key="fitments" className="font-semibold text-secondary">
-                    {fitmentCount.get(vehicle.id) ?? 0}
-                  </span>,
-                  <div key="actions" className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFitmentsFor(vehicle)}
-                      className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-secondary transition hover:brightness-95"
-                    >
-                      <MdLink className="h-3.5 w-3.5" />
-                      Fitments
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openEdit(vehicle)}
-                      className="inline-flex items-center gap-1 rounded-full bg-black/5 px-3 py-1.5 text-[11px] font-semibold text-secondary/60 transition hover:bg-black/10"
-                    >
-                      <MdEdit className="h-3.5 w-3.5" />
-                      Edit
-                    </button>
-                    {pendingDelete === vehicle.id ? (
-                      <button
-                        type="button"
-                        onClick={() => remove(vehicle)}
-                        className="rounded-full bg-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-rose-700"
-                      >
-                        Confirm?
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setPendingDelete(vehicle.id)}
-                        className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-500/20"
-                      >
-                        <MdDelete className="h-3.5 w-3.5" />
-                        Delete
-                      </button>
-                    )}
-                  </div>,
-                ])}
+                itemsPerPage={10}
+                page={page}
+                setPage={setPage}
+                totalPages={Math.ceil((data?.total ?? 0) / 10)}
+                totalItems={data?.total}
+                rows={
+                  data?.vehicles
+                    ? data?.vehicles?.map((vehicle) => [
+                        <div key="vehicle" className="min-w-0">
+                          <p className="truncate font-medium text-secondary">
+                            {vehicle.make} {vehicle.model}
+                          </p>
+                          <p className="mt-0.5 truncate text-[11px] text-secondary/45">
+                            {[vehicle.engine, vehicle.variant]
+                              .filter(Boolean)
+                              .join(" · ") || "—"}
+                          </p>
+                        </div>,
+                        <StatusBadge key="type" tone="blue">
+                          {TYPE_LABELS[vehicle.vehicleType]}
+                        </StatusBadge>,
+                        <span key="years" className="text-secondary/70">
+                          {vehicle.yearFrom || vehicle.yearTo
+                            ? `${vehicle.yearFrom ?? "—"} – ${vehicle.yearTo ?? "—"}`
+                            : "—"}
+                        </span>,
+                        <span key="engine" className="text-secondary/70">
+                          {vehicle.engine || "—"}
+                        </span>,
+                        <span
+                          key="fitments"
+                          className="font-semibold text-secondary"
+                        >
+                          {fitmentCount.get(vehicle.id) ?? 0}
+                        </span>,
+                        <div key="actions" className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFitmentsFor(vehicle)}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-secondary transition hover:brightness-95"
+                          >
+                            <MdLink className="h-3.5 w-3.5" />
+                            Fitments
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openEdit(vehicle)}
+                            className="inline-flex items-center gap-1 rounded-full bg-black/5 px-3 py-1.5 text-[11px] font-semibold text-secondary/60 transition hover:bg-black/10"
+                          >
+                            <MdEdit className="h-3.5 w-3.5" />
+                            Edit
+                          </button>
+                          {pendingDelete === vehicle.id ? (
+                            <button
+                              type="button"
+                              onClick={() => remove(vehicle)}
+                              className="rounded-full bg-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-rose-700"
+                            >
+                              Confirm?
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setPendingDelete(vehicle.id)}
+                              className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-500/20"
+                            >
+                              <MdDelete className="h-3.5 w-3.5" />
+                              Delete
+                            </button>
+                          )}
+                        </div>,
+                      ])
+                    : []
+                }
               />
             </div>
           </div>
@@ -401,7 +448,9 @@ function VehicleModal({
         <Field label="Vehicle type">
           <SelectInput
             value={vehicleType}
-            onChange={(event) => setVehicleType(event.target.value as VehicleType)}
+            onChange={(event) =>
+              setVehicleType(event.target.value as VehicleType)
+            }
           >
             {VEHICLE_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -474,7 +523,9 @@ function VehicleModal({
         />
       </Field>
 
-      {error ? <p className="text-xs font-medium text-rose-600">{error}</p> : null}
+      {error ? (
+        <p className="text-xs font-medium text-rose-600">{error}</p>
+      ) : null}
 
       <button
         type="button"
@@ -483,11 +534,7 @@ function VehicleModal({
         className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-secondary text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
       >
         <MdAdd />
-        {isSubmitting
-          ? "Saving…"
-          : vehicle
-            ? "Save changes"
-            : "Add vehicle"}
+        {isSubmitting ? "Saving…" : vehicle ? "Save changes" : "Add vehicle"}
       </button>
     </ModalShell>
   );
@@ -530,7 +577,8 @@ function FitmentsModal({
     products.find((product) => product.id === productId)?.name ?? productId;
 
   const linkedIds = useMemo(
-    () => new Set(compatibilities.map((compatibility) => compatibility.productId)),
+    () =>
+      new Set(compatibilities.map((compatibility) => compatibility.productId)),
     [compatibilities],
   );
 
