@@ -5,10 +5,20 @@ import { Dispatch, ReactNode, SetStateAction } from "react";
 import { Pagination, Spinner } from "@heroui/react";
 import Image from "next/image";
 
-export function LoadingState({ label = "Loading…" }: { label?: string }) {
+export function LoadingState({
+  label = "Loading…",
+  compact = false,
+}: {
+  label?: string;
+  compact?: boolean;
+}) {
   return (
-    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 rounded-[28px] bg-card/50">
-      <Spinner size="lg" />
+    <div
+      className={`flex ${
+        compact ? "min-h-40" : "min-h-[40vh]"
+      } flex-col items-center justify-center gap-3 rounded-[28px] bg-card/50`}
+    >
+      <Spinner size={compact ? "md" : "lg"} />
       {label ? <p className="text-xs text-secondary/55">{label}</p> : null}
     </div>
   );
@@ -17,12 +27,18 @@ export function LoadingState({ label = "Loading…" }: { label?: string }) {
 export function ErrorState({
   message,
   onRetry,
+  compact = false,
 }: {
   message: string;
   onRetry?: () => void;
+  compact?: boolean;
 }) {
   return (
-    <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 rounded-[28px] bg-card/50 px-6 text-center">
+    <div
+      className={`flex ${
+        compact ? "min-h-40" : "min-h-[40vh]"
+      } flex-col items-center justify-center gap-4 rounded-[28px] bg-card/50 px-6 text-center`}
+    >
       <p className="max-w-sm text-sm text-secondary/60">{message}</p>
       {onRetry ? (
         <button

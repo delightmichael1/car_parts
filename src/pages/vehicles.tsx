@@ -62,14 +62,24 @@ export default function VehiclesPage() {
   // only fires off `debouncedQuery`, ~350ms after the person stops typing.
   const debouncedQuery = useDebouncedValue(query, 350);
 
-  const { data, isLoading, error, refetch } = useApiResource(
-    async (client) => {
-      const vehicleParams: any = { page, limit: 10 };
-      if (debouncedQuery != "") {
-        vehicleParams["search"] = debouncedQuery;
+  const loadKey = useMemo(
+    () => ({ page, search: debouncedQuery, type: typeFilter }),
+    [page, debouncedQuery, typeFilter],
+  );
+
+  const { data, isLoading, isFetching, error, refetch } = useApiResource(
+    async (client, key) => {
+      const { page: pageKey, search, type } = key as {
+        page: number;
+        search: string;
+        type: VehicleType | "ALL";
+      };
+      const vehicleParams: any = { page: pageKey, limit: 10 };
+      if (search != "") {
+        vehicleParams["search"] = search;
       }
-      if (typeFilter !== "ALL") {
-        vehicleParams["vehicleType"] = typeFilter;
+      if (type !== "ALL") {
+        vehicleParams["vehicleType"] = type;
       }
       const [vehicles, products, counts] = await Promise.all([
         client.get<{ vehicles: Vehicle[]; total: number }>("/vehicles", {
@@ -90,11 +100,8 @@ export default function VehiclesPage() {
       };
     },
     () => "We couldn't load your vehicle fleet right now.",
+    loadKey,
   );
-
-  useEffect(() => {
-    refetch();
-  }, [page, debouncedQuery, typeFilter, refetch]);
 
   // A new search term or type filter can invalidate whatever page we were
   // sitting on — jump back to page 1 so results aren't hidden behind an
@@ -152,18 +159,13 @@ export default function VehiclesPage() {
         action={{ label: "Add vehicle", href: undefined }}
         actionOnClick={openCreate}
       >
-        {isLoading ? (
-          <LoadingState label="Loading vehicles…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={refetch} />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Vehicles"
-                value={String(data?.total ?? 0)}
-                note={`${data?.vehicles.length} shown`}
-              />
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Vehicles"
+              value={String(data?.total ?? 0)}
+              note={`${data?.vehicles?.length ?? 0} shown`}
+            />
               <MetricCard
                 label="Cars"
                 value={String(
@@ -223,7 +225,12 @@ export default function VehiclesPage() {
                 </div>
               </div>
 
-              <DataTable
+              {isLoading || isFetching ? (
+                <LoadingState compact label="Loading vehicles…" />
+              ) : error ? (
+                <ErrorState compact message={error} onRetry={refetch} />
+              ) : (
+                <DataTable
                 headers={[
                   "Vehicle",
                   "Type",
@@ -317,9 +324,9 @@ export default function VehiclesPage() {
                     : []
                 }
               />
+              )}
             </div>
           </div>
-        )}
       </OperationsPage>
 
       {isEditorOpen ? (
