@@ -39,6 +39,8 @@ export default function ProductsPage() {
   });
 
   const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const response = await secureAxiosRef.current.get<ProductsResponse>(
         "/products",
@@ -66,7 +68,8 @@ export default function ProductsPage() {
   }, [page, debouncedQuery]);
 
   useEffect(() => {
-    load();
+    const timer = setTimeout(() => load(), 0);
+    return () => clearTimeout(timer);
   }, [load]);
 
   const loadMore = () => {
@@ -126,110 +129,115 @@ export default function ProductsPage() {
         description="Keep every part, fitment, and price ready for the next customer."
         action={{ label: "Add product", href: "/products/new" }}
       >
-        {isLoading ? (
-          <LoadingState label="Loading the catalog…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={load} />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Catalog items"
-                value={String(total)}
-                note={`${products.length} shown`}
-              />
-              <MetricCard
-                label="Low stock"
-                value={String(stock?.low ?? 0)}
-                note="Needs attention"
-              />
-              <MetricCard
-                label="Out of stock"
-                value={String(stock?.out ?? 0)}
-                note="Reorder required"
-              />
-              <MetricCard
-                label="Avg. price"
-                value={avgPrice}
-                note="Across shown items"
-              />
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <label className="flex min-h-11 max-w-md items-center gap-3 rounded-2xl bg-black/5 px-4">
-                <MdSearch className="h-4 w-4 text-secondary/45" />
-                <span className="sr-only">Search products</span>
-                <Input
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Search by SKU, name, or part number"
-                  aria-label="Search products"
-                  variant="secondary"
-                  className="w-full border-transparent bg-transparent px-0 py-0 text-sm shadow-none outline-none focus:border-transparent focus:ring-0 placeholder:text-secondary/40"
-                />
-              </label>
-
-              <DataTable
-                headers={["Product", "Category", "Stock", "Price", "Status"]}
-                empty={
-                  <EmptyState
-                    title={query ? "No matching parts" : "No products yet"}
-                    description={
-                      query
-                        ? "Try a different search term or clear the filter."
-                        : "Add your first part to start building the catalog."
-                    }
-                    action={
-                      query
-                        ? undefined
-                        : { href: "/products/new", label: "Add a product" }
-                    }
-                  />
-                }
-                rows={products.map((product) => [
-                  <div key="name" className="min-w-0">
-                    <p className="truncate font-medium text-secondary">
-                      {product.name}
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] text-secondary/45">
-                      SKU: {product.sku}
-                      {product.partNumber ? ` · ${product.partNumber}` : ""}
-                    </p>
-                  </div>,
-                  <span key="category" className="text-secondary/70">
-                    {product.category?.name ?? "—"}
-                  </span>,
-                  <span key="stock" className="text-secondary/70">
-                    {product.quantity} unit
-                    {product.quantity === 1 ? "" : "s"}
-                  </span>,
-                  <span key="price" className="font-semibold text-secondary">
-                    {formatMoney(product.sellingPrice)}
-                  </span>,
-                  <StatusBadge key="status" tone={stockTone(product)}>
-                    {stockLabel(product)}
-                  </StatusBadge>,
-                ])}
-              />
-
-              {hasMore ? (
-                <button
-                  type="button"
-                  onClick={loadMore}
-                  disabled={isLoadingMore}
-                  className="flex min-h-12 items-center justify-center rounded-2xl bg-black/5 text-sm font-semibold text-secondary transition hover:bg-black/10 disabled:opacity-60"
-                >
-                  {isLoadingMore
-                    ? "Loading…"
-                    : `Load more (${total - products.length} remaining)`}
-                </button>
-              ) : null}
-            </div>
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Catalog items"
+              value={String(total)}
+              note={`${products.length} shown`}
+            />
+            <MetricCard
+              label="Low stock"
+              value={String(stock?.low ?? 0)}
+              note="Needs attention"
+            />
+            <MetricCard
+              label="Out of stock"
+              value={String(stock?.out ?? 0)}
+              note="Reorder required"
+            />
+            <MetricCard
+              label="Avg. price"
+              value={avgPrice}
+              note="Across shown items"
+            />
           </div>
-        )}
+
+          <div className="flex flex-col gap-3">
+            <label className="flex min-h-11 max-w-md items-center gap-3 rounded-2xl bg-black/5 px-4">
+              <MdSearch className="h-4 w-4 text-secondary/45" />
+              <span className="sr-only">Search products</span>
+              <Input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search by SKU, name, or part number"
+                aria-label="Search products"
+                variant="secondary"
+                className="w-full border-transparent bg-transparent px-0 py-0 text-sm shadow-none outline-none focus:border-transparent focus:ring-0 placeholder:text-secondary/40"
+              />
+            </label>
+
+            {isLoading ? (
+              <LoadingState compact label="Loading the catalog…" />
+            ) : error ? (
+              <ErrorState compact message={error} onRetry={load} />
+            ) : (
+              <>
+                <DataTable
+                  headers={["Product", "Category", "Stock", "Price", "Status"]}
+                  empty={
+                    <EmptyState
+                      title={query ? "No matching parts" : "No products yet"}
+                      description={
+                        query
+                          ? "Try a different search term or clear the filter."
+                          : "Add your first part to start building the catalog."
+                      }
+                      action={
+                        query
+                          ? undefined
+                          : { href: "/products/new", label: "Add a product" }
+                      }
+                    />
+                  }
+                  rows={products.map((product) => [
+                    <div key="name" className="min-w-0">
+                      <p className="truncate font-medium text-secondary">
+                        {product.name}
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] text-secondary/45">
+                        SKU: {product.sku}
+                        {product.partNumber ? ` · ${product.partNumber}` : ""}
+                      </p>
+                    </div>,
+                    <span key="category" className="text-secondary/70">
+                      {product.category?.name ?? "—"}
+                    </span>,
+                    <span key="stock" className="text-secondary/70">
+                      {product.quantity} unit
+                      {product.quantity === 1 ? "" : "s"}
+                    </span>,
+                    <span
+                      key="price"
+                      className="font-semibold text-secondary"
+                    >
+                      {formatMoney(product.sellingPrice)}
+                    </span>,
+                    <StatusBadge key="status" tone={stockTone(product)}>
+                      {stockLabel(product)}
+                    </StatusBadge>,
+                  ])}
+                />
+
+                {hasMore ? (
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    disabled={isLoadingMore}
+                    className="flex min-h-12 items-center justify-center rounded-2xl bg-black/5 text-sm font-semibold text-secondary transition hover:bg-black/10 disabled:opacity-60"
+                  >
+                    {isLoadingMore
+                      ? "Loading…"
+                      : `Load more (${total - products.length} remaining)`}
+                  </button>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
       </OperationsPage>
     </DashboardLayout>
   );

@@ -27,6 +27,7 @@ import {
   TextInput,
 } from "@/components/shared/FormFields";
 import { useApiResource } from "@/hooks/useApiResource";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAxios } from "@/hooks/useAxios";
 import { apiErrorMessage } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
@@ -35,11 +36,12 @@ import { Brand } from "@/types/types";
 export default function BrandsPage() {
   const { secureAxios } = useAxios();
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Brand | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  const { data, isLoading, error, refetch } = useApiResource(
+  const { data, isLoading, isFetching, error, refetch } = useApiResource(
     async (client) => {
       const response = await client.get<{ brands: Brand[]; total: number }>(
         "/brands",
@@ -52,14 +54,14 @@ export default function BrandsPage() {
   const brands = useMemo(() => data?.brands ?? [], [data]);
 
   const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = debouncedQuery.trim().toLowerCase();
     if (!term) return brands;
     return brands.filter((brand) =>
       [brand.name, brand.description]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(term)),
     );
-  }, [brands, query]);
+  }, [brands, debouncedQuery]);
 
   const activeCount = brands.filter((brand) => brand.isActive).length;
   const inactiveCount = brands.length - activeCount;
@@ -126,18 +128,13 @@ export default function BrandsPage() {
         action={{ label: "Add brand", href: undefined }}
         actionOnClick={openCreate}
       >
-        {isLoading ? (
-          <LoadingState label="Loading brands…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={refetch} />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Total brands"
-                value={String(data?.total ?? 0)}
-                note={`${filtered.length} shown`}
-              />
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Total brands"
+              value={String(data?.total ?? 0)}
+              note={`${filtered.length} shown`}
+            />
               <MetricCard
                 label="Active"
                 value={String(activeCount)}
@@ -168,18 +165,23 @@ export default function BrandsPage() {
               />
             </label>
 
-            <DataTable
-              headers={["Brand", "Description", "Status", "Added", "Actions"]}
-              empty={
-                <EmptyState
-                  title={query ? "No matching brands" : "No brands yet"}
-                  description={
-                    query
-                      ? "Try a different search term."
-                      : "Add the manufacturers your parts come from so the POS and catalog can filter by them."
-                  }
-                />
-              }
+            {isLoading || isFetching ? (
+              <LoadingState compact label="Loading brands…" />
+            ) : error ? (
+              <ErrorState compact message={error} onRetry={refetch} />
+            ) : (
+              <DataTable
+                headers={["Brand", "Description", "Status", "Added", "Actions"]}
+                empty={
+                  <EmptyState
+                    title={debouncedQuery ? "No matching brands" : "No brands yet"}
+                    description={
+                      debouncedQuery
+                        ? "Try a different search term."
+                        : "Add the manufacturers your parts come from so the POS and catalog can filter by them."
+                    }
+                  />
+                }
               rows={filtered.map((brand) => [
                 <span key="name" className="font-medium text-secondary">
                   {brand.name}
@@ -244,9 +246,9 @@ export default function BrandsPage() {
                   )}
                 </div>,
               ])}
-            />
+              />
+            )}
           </div>
-        )}
       </OperationsPage>
 
       {isEditorOpen ? (

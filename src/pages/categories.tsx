@@ -29,6 +29,7 @@ import {
   TextInput,
 } from "@/components/shared/FormFields";
 import { useApiResource } from "@/hooks/useApiResource";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAxios } from "@/hooks/useAxios";
 import { apiErrorMessage } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
@@ -46,6 +47,7 @@ type CategoryPayload = {
 export default function CategoriesPage() {
   const { secureAxios } = useAxios();
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [presetParent, setPresetParent] = useState<string | undefined>(
@@ -53,7 +55,7 @@ export default function CategoriesPage() {
   );
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  const { data, isLoading, error, refetch } = useApiResource(
+  const { data, isLoading, isFetching, error, refetch } = useApiResource(
     async (client) => {
       const response = await client.get<{
         categories: Category[];
@@ -67,14 +69,14 @@ export default function CategoriesPage() {
   const categories = useMemo(() => data?.categories ?? [], [data]);
 
   const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = debouncedQuery.trim().toLowerCase();
     if (!term) return categories;
     return categories.filter((category) =>
       [category.name, category.description]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(term)),
     );
-  }, [categories, query]);
+  }, [categories, debouncedQuery]);
 
   const categoryById = useMemo(() => {
     const map = new Map<string, Category>();
@@ -149,18 +151,13 @@ export default function CategoriesPage() {
         action={{ label: "Add category", href: undefined }}
         actionOnClick={openCreate}
       >
-        {isLoading ? (
-          <LoadingState label="Loading categories…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={refetch} />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Total categories"
-                value={String(data?.total ?? 0)}
-                note={`${filtered.length} shown`}
-              />
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Total categories"
+              value={String(data?.total ?? 0)}
+              note={`${filtered.length} shown`}
+            />
               <MetricCard
                 label="Active"
                 value={String(activeCount)}
@@ -191,18 +188,27 @@ export default function CategoriesPage() {
               />
             </label>
 
-            <DataTable
-              headers={["Category", "Parent", "Status", "Added", "Actions"]}
-              empty={
-                <EmptyState
-                  title={query ? "No matching categories" : "No categories yet"}
-                  description={
-                    query
-                      ? "Try a different search term."
-                      : "Add your first category to structure the product catalog."
-                  }
-                />
-              }
+            {isLoading || isFetching ? (
+              <LoadingState compact label="Loading categories…" />
+            ) : error ? (
+              <ErrorState compact message={error} onRetry={refetch} />
+            ) : (
+              <DataTable
+                headers={["Category", "Parent", "Status", "Added", "Actions"]}
+                empty={
+                  <EmptyState
+                    title={
+                      debouncedQuery
+                        ? "No matching categories"
+                        : "No categories yet"
+                    }
+                    description={
+                      debouncedQuery
+                        ? "Try a different search term."
+                        : "Add your first category to structure the product catalog."
+                    }
+                  />
+                }
               rows={filtered.map((category) => [
                 <div key="name" className="min-w-0">
                   <p className="truncate font-medium text-secondary">
@@ -282,9 +288,9 @@ export default function CategoriesPage() {
                   )}
                 </div>,
               ])}
-            />
+              />
+            )}
           </div>
-        )}
       </OperationsPage>
 
       {isEditorOpen ? (

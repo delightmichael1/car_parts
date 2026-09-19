@@ -13,6 +13,7 @@ import {
   LoadingState,
 } from "@/components/shared/PageState";
 import { useApiResource } from "@/hooks/useApiResource";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { formatDate, formatMoney } from "@/lib/format";
 import {
   Customer,
@@ -25,46 +26,42 @@ import {
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
-  const [submitted, setSubmitted] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 350);
+  const term = debouncedQuery.trim();
 
-  const { data, isLoading, error, refetch } = useApiResource(
+  const { data, isLoading, isFetching, error, refetch } = useApiResource(
     async (client, key) => {
-      const term = String(key ?? "").trim();
-      if (!term) {
+      const searchTerm = String(key ?? "").trim();
+      if (!searchTerm) {
         return { term: "", products: [], customers: [], sales: [] };
       }
       const [products, customers, sales] = await Promise.all([
         client
           .get<ProductsResponse>("/products", {
-            params: { search: term, page: 1, limit: 20 },
+            params: { search: searchTerm, page: 1, limit: 20 },
           })
           .catch(() => null),
         client
           .get<CustomersResponse>("/customers", {
-            params: { search: term, page: 1, limit: 20 },
+            params: { search: searchTerm, page: 1, limit: 20 },
           })
           .catch(() => null),
         client
           .get<SalesResponse>("/sales", {
-            params: { saleNumber: term, page: 1, limit: 20 },
+            params: { saleNumber: searchTerm, page: 1, limit: 20 },
           })
           .catch(() => null),
       ]);
       return {
-        term,
+        term: searchTerm,
         products: products?.data?.products ?? [],
         customers: customers?.data?.customers ?? [],
         sales: sales?.data?.sales ?? [],
       };
     },
     () => "We couldn't search right now.",
-    submitted,
+    term,
   );
-
-  const runSearch = () => {
-    if (!query.trim()) return;
-    setSubmitted(query.trim());
-  };
 
   const resultCount = data
     ? data.products.length + data.customers.length + data.sales.length
@@ -77,53 +74,38 @@ export default function SearchPage() {
         description="Find parts, customers, quotations, and sales from one fast workspace."
       >
         <div className="flex w-full flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <label className="flex min-h-13 flex-1 items-center gap-3 rounded-2xl bg-black/5 px-4">
-              <MdSearch className="h-5 w-5 text-secondary/45" />
-              <span className="sr-only">Search</span>
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") runSearch();
-                }}
-                placeholder="Search by SKU, name, customer, or invoice…"
-                aria-label="Search"
-                variant="secondary"
-                className="w-full rounded-none border-transparent bg-transparent px-0 py-0 text-base shadow-none outline-none focus:border-transparent focus:ring-0 placeholder:text-secondary/40"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={runSearch}
-              disabled={!query.trim()}
-              className="min-h-13 rounded-2xl bg-secondary px-6 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-50"
-            >
-              Search
-            </button>
-          </div>
+          <label className="flex min-h-13 items-center gap-3 rounded-2xl bg-black/5 px-4">
+            <MdSearch className="h-5 w-5 text-secondary/45" />
+            <span className="sr-only">Search</span>
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by SKU, name, customer, or invoice…"
+              aria-label="Search"
+              variant="secondary"
+              className="w-full rounded-none border-transparent bg-transparent px-0 py-0 text-base shadow-none outline-none focus:border-transparent focus:ring-0 placeholder:text-secondary/40"
+            />
+          </label>
 
-          {isLoading ? (
-            <LoadingState label="Searching…" />
+          {isLoading || isFetching ? (
+            <LoadingState compact label="Searching…" />
           ) : error ? (
-            <ErrorState message={error} onRetry={refetch} />
-          ) : !submitted ? (
+            <ErrorState compact message={error} onRetry={refetch} />
+          ) : !term ? (
             <EmptyState
               title="Search the workspace"
               description="Try a part name or SKU, a customer name, or an invoice number like INV-000001."
             />
           ) : resultCount === 0 ? (
             <EmptyState
-              title={`No results for "${submitted}"`}
+              title={`No results for "${term}"`}
               description="Check the spelling or try a different term."
             />
           ) : (
             <div className="flex flex-col gap-5">
               <p className="text-xs text-secondary/45">
                 {resultCount} result{resultCount === 1 ? "" : "s"} for{" "}
-                <span className="font-semibold text-secondary">
-                  {submitted}
-                </span>
+                <span className="font-semibold text-secondary">{term}</span>
               </p>
 
               {data!.products.length > 0 ? (

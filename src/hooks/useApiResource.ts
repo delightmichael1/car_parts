@@ -22,6 +22,7 @@ export function useApiResource<T>(
   const { secureAxios } = useAxios();
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const deviceId = useDeviceStore((state) => state.device?.id);
 
@@ -46,6 +47,7 @@ export function useApiResource<T>(
   }, [key]);
 
   const load = useCallback(async () => {
+    setIsFetching(true);
     try {
       const result = await fetcherRef.current(
         secureAxiosRef.current,
@@ -58,12 +60,15 @@ export function useApiResource<T>(
           "We couldn't load this data right now. Check your connection and try again.",
       );
     } finally {
+      setIsFetching(false);
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (deviceId) load();
+    if (!deviceId) return;
+    const timer = setTimeout(() => load(), 0);
+    return () => clearTimeout(timer);
   }, [load, key, deviceId]);
 
   const refetch = useCallback(async () => {
@@ -72,5 +77,5 @@ export function useApiResource<T>(
     await load();
   }, [load]);
 
-  return { data, isLoading, error, refetch };
+  return { data, isLoading, isFetching, error, refetch };
 }

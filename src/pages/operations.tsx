@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatDate, formatMoney } from "@/lib/format";
 import DashboardLayout from "@/layout/DashboardLayout";
 import { useApiResource } from "@/hooks/useApiResource";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { saleStatusTone, paymentTone } from "@/lib/status";
 import { Customer, Sale, SalesResponse } from "@/types/types";
 import { PaymentModal } from "@/components/shared/PaymentModal";
@@ -28,11 +29,12 @@ export default function OperationsPageView() {
   const { secureAxios } = useAxios();
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [payingSale, setPayingSale] = useState<Sale | null>(null);
   const [viewingSale, setViewingSale] = useState<Sale | null>(null);
 
-  const { data, isLoading, error, refetch } = useApiResource(
+  const { data, isLoading, isFetching, error, refetch } = useApiResource(
     async (client) => {
       const [sales, customers] = await Promise.all([
         client.get<SalesResponse>("/sales", {
@@ -61,7 +63,7 @@ export default function OperationsPageView() {
   }, [data]);
 
   const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = debouncedQuery.trim().toLowerCase();
     return sales.filter((sale) => {
       if (statusFilter !== "ALL" && sale.status !== statusFilter) return false;
       if (!term) return true;
@@ -72,7 +74,7 @@ export default function OperationsPageView() {
           .includes(term)
       );
     });
-  }, [sales, query, statusFilter, customerById]);
+  }, [sales, debouncedQuery, statusFilter, customerById]);
 
   const drafts = sales.filter((sale) => sale.status === "DRAFT").length;
   const completed = sales.filter((sale) => sale.status === "COMPLETED").length;
@@ -134,18 +136,13 @@ export default function OperationsPageView() {
         description="Review sales, payments, and order progress in one clear view."
         action={{ label: "Open POS", href: "/pos" }}
       >
-        {isLoading ? (
-          <LoadingState label="Loading transactions…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={refetch} />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Total transactions"
-                value={String(data?.total ?? 0)}
-                note={`${filtered.length} shown`}
-              />
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Total transactions"
+              value={String(data?.total ?? 0)}
+              note={`${filtered.length} shown`}
+            />
               <MetricCard
                 label="Draft sales"
                 value={String(drafts)}
@@ -181,33 +178,38 @@ export default function OperationsPageView() {
               </label>
             </div>
 
-            <DataTable
-              headers={[
-                "Invoice",
-                "Customer",
-                "Date",
-                "Status",
-                "Payment",
-                "Tax",
-                "Discount",
-                "Total",
-                "Actions",
-              ]}
-              empty={
-                <EmptyState
-                  title="No transactions found"
-                  description={
-                    query || statusFilter !== "ALL"
-                      ? "Try a different filter or search term."
-                      : "Head to the POS to create your first sale."
-                  }
-                  action={
-                    query || statusFilter !== "ALL"
-                      ? undefined
-                      : { href: "/pos", label: "Open POS" }
-                  }
-                />
-              }
+            {isLoading || isFetching ? (
+              <LoadingState compact label="Loading transactions…" />
+            ) : error ? (
+              <ErrorState compact message={error} onRetry={refetch} />
+            ) : (
+              <DataTable
+                headers={[
+                  "Invoice",
+                  "Customer",
+                  "Date",
+                  "Status",
+                  "Payment",
+                  "Tax",
+                  "Discount",
+                  "Total",
+                  "Actions",
+                ]}
+                empty={
+                  <EmptyState
+                    title="No transactions found"
+                    description={
+                      debouncedQuery || statusFilter !== "ALL"
+                        ? "Try a different filter or search term."
+                        : "Head to the POS to create your first sale."
+                    }
+                    action={
+                      debouncedQuery || statusFilter !== "ALL"
+                        ? undefined
+                        : { href: "/pos", label: "Open POS" }
+                    }
+                  />
+                }
               itemsPerPage={data?.limit}
               page={page}
               setPage={setPage}
@@ -295,9 +297,9 @@ export default function OperationsPageView() {
                   ) : null}
                 </div>,
               ])}
-            />
+              />
+            )}
           </div>
-        )}
       </OperationsPage>
 
       {viewingSale ? (

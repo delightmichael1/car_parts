@@ -15,13 +15,15 @@ import { CustomersResponse } from "@/types/types";
 import { useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/layout/DashboardLayout";
 import { useApiResource } from "@/hooks/useApiResource";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { OperationsPage } from "@/components/shared/OperationsPage";
 
 export default function CustomersPage() {
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, error, refetch } = useApiResource(
+  const { data, isLoading, isFetching, error, refetch } = useApiResource(
     async (client) => {
       const response = await client.get<CustomersResponse>("/customers", {
         params: { page: page, limit: 10 },
@@ -38,14 +40,14 @@ export default function CustomersPage() {
   const customers = useMemo(() => data?.customers ?? [], [data]);
 
   const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = debouncedQuery.trim().toLowerCase();
     if (!term) return customers;
     return customers.filter((customer) =>
       [customer.customerCode, customer.name, customer.phone, customer.email]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(term)),
     );
-  }, [customers, query]);
+  }, [customers, debouncedQuery]);
 
   const businesses = customers.filter(
     (customer) => customer.customerType === "BUSINESS",
@@ -61,18 +63,13 @@ export default function CustomersPage() {
         description="Build lasting relationships with a complete view of every buyer."
         action={{ label: "Add customer", href: "/customers/new" }}
       >
-        {isLoading ? (
-          <LoadingState label="Loading customers…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={refetch} />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Total customers"
-                value={String(data?.total ?? 0)}
-                note={`${filtered.length} shown`}
-              />
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Total customers"
+              value={String(data?.total ?? 0)}
+              note={`${filtered.length} shown`}
+            />
               <MetricCard
                 label="Business accounts"
                 value={String(businesses)}
@@ -115,23 +112,32 @@ export default function CustomersPage() {
               />
             </label>
 
-            <DataTable
-              headers={["Customer", "Contact", "Type", "Credit", "Status"]}
-              empty={
-                <EmptyState
-                  title={query ? "No matching customers" : "No customers yet"}
-                  description={
-                    query
-                      ? "Try a different search term or clear the filter."
-                      : "Add your first customer to start building the directory."
-                  }
-                  action={
-                    query
-                      ? undefined
-                      : { href: "/customers/new", label: "Add a customer" }
-                  }
-                />
-              }
+            {isLoading || isFetching ? (
+              <LoadingState compact label="Loading customers…" />
+            ) : error ? (
+              <ErrorState compact message={error} onRetry={refetch} />
+            ) : (
+              <DataTable
+                headers={["Customer", "Contact", "Type", "Credit", "Status"]}
+                empty={
+                  <EmptyState
+                    title={
+                      debouncedQuery
+                        ? "No matching customers"
+                        : "No customers yet"
+                    }
+                    description={
+                      debouncedQuery
+                        ? "Try a different search term or clear the filter."
+                        : "Add your first customer to start building the directory."
+                    }
+                    action={
+                      debouncedQuery
+                        ? undefined
+                        : { href: "/customers/new", label: "Add a customer" }
+                    }
+                  />
+                }
               itemsPerPage={data?.limit}
               page={page}
               setPage={setPage}
@@ -171,9 +177,9 @@ export default function CustomersPage() {
                   {customer.isActive ? "Active" : "Inactive"}
                 </StatusBadge>,
               ])}
-            />
+              />
+            )}
           </div>
-        )}
       </OperationsPage>
     </DashboardLayout>
   );

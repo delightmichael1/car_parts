@@ -23,6 +23,7 @@ import {
 import { Field, SelectInput, TextInput } from "@/components/shared/FormFields";
 import { AppModal } from "@/components/shared/AppModal";
 import { useApiResource } from "@/hooks/useApiResource";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAxios } from "@/hooks/useAxios";
 import { apiErrorMessage } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
@@ -31,11 +32,12 @@ import { Role, RolesResponse, User, UsersResponse } from "@/types/types";
 export default function UsersPage() {
   const { secureAxios } = useAxios();
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 300);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const [resetting, setResetting] = useState<User | null>(null);
 
-  const { data, isLoading, error, refetch } = useApiResource(
+  const { data, isLoading, isFetching, error, refetch } = useApiResource(
     async (client) => {
       const [users, roles] = await Promise.all([
         client.get<UsersResponse>("/user/users", {
@@ -58,14 +60,14 @@ export default function UsersPage() {
   }, [roles]);
 
   const filtered = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = debouncedQuery.trim().toLowerCase();
     if (!term) return users;
     return users.filter((user) =>
       [user.first_name, user.last_name, user.email]
         .filter(Boolean)
         .some((value) => value!.toLowerCase().includes(term)),
     );
-  }, [users, query]);
+  }, [users, debouncedQuery]);
 
   const onlineCount = users.filter((user) => user.online).length;
   const activeCount = users.filter((user) => user.status !== "suspended").length;
@@ -116,18 +118,13 @@ export default function UsersPage() {
           setIsEditorOpen(true);
         }}
       >
-        {isLoading ? (
-          <LoadingState label="Loading your team…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={refetch} />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Team members"
-                value={String(users.length)}
-                note={`${roles.length} roles available`}
-              />
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              label="Team members"
+              value={String(users.length)}
+              note={`${roles.length} roles available`}
+            />
               <MetricCard
                 label="Online now"
                 value={String(onlineCount)}
@@ -159,18 +156,32 @@ export default function UsersPage() {
                 />
               </label>
 
-              <DataTable
-                headers={["User", "Role", "Status", "Online", "Joined", "Actions"]}
-                empty={
-                  <EmptyState
-                    title={query ? "No matching users" : "No users yet"}
-                    description={
-                      query
-                        ? "Try a different search term."
-                        : "Add your first team member to start collaborating."
-                    }
-                  />
-                }
+              {isLoading || isFetching ? (
+                <LoadingState compact label="Loading your team…" />
+              ) : error ? (
+                <ErrorState compact message={error} onRetry={refetch} />
+              ) : (
+                <DataTable
+                  headers={[
+                    "User",
+                    "Role",
+                    "Status",
+                    "Online",
+                    "Joined",
+                    "Actions",
+                  ]}
+                  empty={
+                    <EmptyState
+                      title={
+                        debouncedQuery ? "No matching users" : "No users yet"
+                      }
+                      description={
+                        debouncedQuery
+                          ? "Try a different search term."
+                          : "Add your first team member to start collaborating."
+                      }
+                    />
+                  }
                 rows={filtered.map((user) => [
                   <div key="user" className="min-w-0">
                     <p className="truncate font-medium text-secondary">
@@ -246,10 +257,10 @@ export default function UsersPage() {
                     )}
                   </div>,
                 ])}
-              />
+                />
+              )}
             </div>
           </div>
-        )}
       </OperationsPage>
 
       {isEditorOpen ? (
