@@ -282,7 +282,7 @@ export default function DashboardHome() {
                       {product.productName}
                     </p>
                     <p className="truncate text-[11px] text-secondary/45">
-                      SKU: {product.sku} · {product.quantity} units
+                      No.: {product.partNumber} · {product.quantity} units
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-secondary">
@@ -572,7 +572,7 @@ export default function DashboardHome() {
                       {product.productName}
                     </p>
                     <p className="truncate text-[11px] text-secondary/45">
-                      SKU: {product.sku} · {product.quantity} units
+                      No.: {product.partNumber} · {product.quantity} units
                     </p>
                   </div>
                   <span className="text-sm font-semibold text-secondary">
