@@ -73,7 +73,7 @@ export interface StockMovement {
 
 export interface DashboardProductSummary {
   productId: string;
-  sku: string;
+  partNumber: string;
   productName: string;
   quantity: number;
   revenue: string;

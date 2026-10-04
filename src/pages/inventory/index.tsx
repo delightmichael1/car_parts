@@ -1,9 +1,3 @@
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-import { MdInventory, MdAdd, MdTune } from "react-icons/md";
-import DashboardLayout from "@/layout/DashboardLayout";
-import { OperationsPage } from "@/components/shared/OperationsPage";
 import {
   DataTable,
   EmptyState,
@@ -12,18 +6,23 @@ import {
   MetricCard,
   StatusBadge,
 } from "@/components/shared/PageState";
-import { AppModal } from "@/components/shared/AppModal";
-import { TextInput } from "@/components/shared/FormFields";
-import { AsyncProductSelect } from "@/components/shared/AsyncProductSelect";
-import { useApiResource } from "@/hooks/useApiResource";
-import { useAxios } from "@/hooks/useAxios";
-import { apiErrorMessage } from "@/lib/errors";
-import { formatDate } from "@/lib/format";
 import {
   LowStockResponse,
   MovementsResponse,
   ProductsResponse,
 } from "@/types/types";
+import Link from "next/link";
+import { formatDate } from "@/lib/format";
+import { useAxios } from "@/hooks/useAxios";
+import { apiErrorMessage } from "@/lib/errors";
+import { useEffect, useMemo, useState } from "react";
+import DashboardLayout from "@/layout/DashboardLayout";
+import { AppModal } from "@/components/shared/AppModal";
+import { useApiResource } from "@/hooks/useApiResource";
+import { TextInput } from "@/components/shared/FormFields";
+import { OperationsPage } from "@/components/shared/OperationsPage";
+import { MdInventory, MdAdd, MdTune, MdUploadFile } from "react-icons/md";
+import { AsyncProductSelect } from "@/components/shared/AsyncProductSelect";
 
 export default function InventoryPage() {
   const { secureAxios } = useAxios();
@@ -33,20 +32,24 @@ export default function InventoryPage() {
 
   const { data, isLoading, error, refetch } = useApiResource(
     async (client) => {
-      const [products, lowStock, outOfStock, movements] = await Promise.all([
-        client.get<ProductsResponse>("/products", {
-          params: { page: 1, limit: 1000 },
-        }),
-        client.get<LowStockResponse>("/inventory/low-stock", {
-          params: { page: 1, limit: 100 },
-        }),
-        client.get<LowStockResponse>("/inventory/out-of-stock", {
-          params: { page: 1, limit: 100 },
-        }),
-        client.get<MovementsResponse>("/inventory/movements", {
-          params: { page, limit: 10 },
-        }),
-      ]);
+      const [products, lowStock, outOfStock, movements, needsReview] =
+        await Promise.all([
+          client.get<ProductsResponse>("/products", {
+            params: { page: 1, limit: 1000 },
+          }),
+          client.get<LowStockResponse>("/inventory/low-stock", {
+            params: { page: 1, limit: 100 },
+          }),
+          client.get<LowStockResponse>("/inventory/out-of-stock", {
+            params: { page: 1, limit: 100 },
+          }),
+          client.get<MovementsResponse>("/inventory/movements", {
+            params: { page, limit: 10 },
+          }),
+          client.get<ProductsResponse>("/products", {
+            params: { needsReview: "true", page: 1, limit: 1 },
+          }),
+        ]);
       return {
         products: products.data.products,
         limit: movements.data.limit,
@@ -56,6 +59,7 @@ export default function InventoryPage() {
         outOfStock: outOfStock.data.products,
         outOfStockTotal: outOfStock.data.total,
         movements: movements.data.movements,
+        needsReviewTotal: needsReview.data.total,
       };
     },
     () => "We couldn't load your inventory right now.",
@@ -92,6 +96,36 @@ export default function InventoryPage() {
           <ErrorState message={error} onRetry={refetch} />
         ) : (
           <div className="flex flex-col gap-5">
+            <section className="flex flex-col gap-3 rounded-2xl border border-black/10 bg-white p-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-semibold text-secondary">
+                  Received a delivery spreadsheet?
+                </p>
+                <p className="mt-0.5 text-sm text-secondary/60">
+                  Import it to add stock in bulk. Unknown parts are created
+                  automatically for review.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(data?.needsReviewTotal ?? 0) > 0 ? (
+                  <Link
+                    href="/inventory/import#review"
+                    className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-amber-300 bg-amber-50 px-5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                  >
+                    {data?.needsReviewTotal} new product
+                    {data?.needsReviewTotal === 1 ? "" : "s"} to review
+                  </Link>
+                ) : null}
+                <Link
+                  href="/inventory/import"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-secondary px-5 text-sm font-semibold text-white transition hover:bg-secondary/90"
+                >
+                  <MdUploadFile />
+                  Import spreadsheet
+                </Link>
+              </div>
+            </section>
+
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard
                 label="Products"
