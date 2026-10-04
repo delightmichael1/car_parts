@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { RiShieldCheckLine, RiArrowDownLine } from "react-icons/ri";
 
 function AuthHero() {
@@ -16,12 +17,14 @@ function AuthHero() {
       <div className="pointer-events-none absolute -top-24 right-0 h-72 w-72 rounded-full bg-[#C6FF3D] opacity-25 blur-[90px]" />
 
       <div className="relative z-10 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#C6FF3D] text-sm font-bold text-black">
-            P
-          </div>
-          <span className="text-sm font-medium text-white">PartsDesk</span>
-        </div>
+        <Image
+          src={"/images/logo1.png"}
+          alt="logo"
+          width={0}
+          height={0}
+          sizes="100vw"
+          className="w-30 h-fit bg-white p-2 rounded-xl"
+        />
         <span className="text-xs text-white/50">
           Counter sales, stock &amp; quotations
         </span>

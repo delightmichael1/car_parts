@@ -379,10 +379,10 @@ export default function ReportsPage() {
                 onDownload={() =>
                   downloadCSV(
                     `top-products-${rangeLabel}.csv`,
-                    ["Product", "SKU", "Quantity", "Revenue"],
+                    ["Product", "Part Number", "Quantity", "Revenue"],
                     (data?.products ?? []).map((product) => [
                       product.productName,
-                      product.sku,
+                      product.partNumber,
                       product.quantity,
                       product.revenue,
                     ]),
@@ -390,7 +390,7 @@ export default function ReportsPage() {
                 }
               >
                 <DataTable
-                  headers={["Product", "SKU", "Quantity", "Revenue"]}
+                  headers={["Product", "Part Number", "Quantity", "Revenue"]}
                   empty={
                     <EmptyState
                       title="No sales yet"
@@ -402,8 +402,8 @@ export default function ReportsPage() {
                       <span key="name" className="font-medium text-secondary">
                         {product.productName}
                       </span>,
-                      <span key="sku" className="text-secondary/70">
-                        {product.sku}
+                      <span key="partNumber" className="text-secondary/70">
+                        {product.partNumber}
                       </span>,
                       <span key="qty" className="text-secondary/70">
                         {product.quantity}

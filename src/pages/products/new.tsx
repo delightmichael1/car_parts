@@ -12,7 +12,10 @@ import {
   TextAreaInput,
   TextInput,
 } from "@/components/shared/FormFields";
-import { OnlinePartSearch, ChosenPart } from "@/components/products/OnlinePartSearch";
+import {
+  OnlinePartSearch,
+  ChosenPart,
+} from "@/components/products/OnlinePartSearch";
 import { ErrorState, LoadingState } from "@/components/shared/PageState";
 import { useApiResource } from "@/hooks/useApiResource";
 import { useAxios } from "@/hooks/useAxios";
@@ -21,7 +24,7 @@ import { Brand, Category, Product } from "@/types/types";
 
 const schema = Yup.object({
   name: Yup.string().required("Product name is required"),
-  sku: Yup.string().required("SKU is required"),
+  sku: Yup.string(),
   categoryId: Yup.string().required("Choose a category"),
   brandId: Yup.string(),
   partNumber: Yup.string(),
@@ -202,217 +205,218 @@ export default function NewProductPage() {
               onSubmit={formik.handleSubmit}
               className="flex flex-col gap-6 rounded-[24px] border border-black/5 bg-card p-5 md:p-8"
             >
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field
-                label="Product name"
-                required
-                error={formik.touched.name ? formik.errors.name : undefined}
-              >
-                <TextInput
-                  name="name"
-                  placeholder="e.g. Toyota Hilux Front Brake Pad"
-                  value={formik.values.name}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-              </Field>
-
-              <Field
-                label="SKU"
-                required
-                error={formik.touched.sku ? formik.errors.sku : undefined}
-                hint="Unique code, e.g. BP-HILUX-001"
-              >
-                <TextInput
-                  name="sku"
-                  placeholder="BP-HILUX-001"
-                  value={formik.values.sku}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-              </Field>
-
-              <Field
-                label="Category"
-                required
-                error={
-                  formik.touched.categoryId
-                    ? formik.errors.categoryId
-                    : undefined
-                }
-              >
-                <SelectInput
-                  name="categoryId"
-                  value={formik.values.categoryId}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field
+                  label="Product name"
+                  required
+                  error={formik.touched.name ? formik.errors.name : undefined}
                 >
-                  <option value="">Select a category…</option>
-                  {categoryOptions.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
+                  <TextInput
+                    name="name"
+                    placeholder="e.g. Toyota Hilux Front Brake Pad"
+                    value={formik.values.name}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                  />
+                </Field>
 
-              <Field label="Brand">
-                <SelectInput
-                  name="brandId"
-                  value={formik.values.brandId}
-                  onChange={formik.handleChange}
-                  placeholder="No brand"
+                <Field
+                  label="SKU"
+                  error={formik.touched.sku ? formik.errors.sku : undefined}
+                  hint="Unique code, e.g. BP-HILUX-001"
                 >
-                  <option value="">No brand</option>
-                  {brandOptions.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.name}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
+                  <TextInput
+                    name="sku"
+                    placeholder="BP-HILUX-001"
+                    value={formik.values.sku}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                  />
+                </Field>
 
-              <Field label="Part number">
-                <TextInput
-                  name="partNumber"
-                  placeholder="04465-0K240"
-                  value={formik.values.partNumber}
+                <Field
+                  label="Category"
+                  required
+                  error={
+                    formik.touched.categoryId
+                      ? formik.errors.categoryId
+                      : undefined
+                  }
+                >
+                  <SelectInput
+                    name="categoryId"
+                    value={formik.values.categoryId}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                  >
+                    <option value="">Select a category…</option>
+                    {categoryOptions.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </Field>
+
+                <Field label="Brand">
+                  <SelectInput
+                    name="brandId"
+                    value={formik.values.brandId}
+                    onChange={formik.handleChange}
+                    placeholder="No brand"
+                  >
+                    <option value="">No brand</option>
+                    {brandOptions.map((brand) => (
+                      <option key={brand.id} value={brand.id}>
+                        {brand.name}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </Field>
+
+                <Field label="Part number">
+                  <TextInput
+                    name="partNumber"
+                    placeholder="04465-0K240"
+                    value={formik.values.partNumber}
+                    onChange={formik.handleChange}
+                  />
+                </Field>
+
+                <Field label="OEM number">
+                  <TextInput
+                    name="oemNumber"
+                    placeholder="04465-0K240"
+                    value={formik.values.oemNumber}
+                    onChange={formik.handleChange}
+                  />
+                </Field>
+
+                <Field
+                  label="Cost price"
+                  required
+                  error={
+                    formik.touched.costPrice
+                      ? formik.errors.costPrice
+                      : undefined
+                  }
+                >
+                  <TextInput
+                    name="costPrice"
+                    inputMode="decimal"
+                    placeholder="25.00"
+                    value={formik.values.costPrice}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                  />
+                </Field>
+
+                <Field
+                  label="Selling price"
+                  required
+                  error={
+                    formik.touched.sellingPrice
+                      ? formik.errors.sellingPrice
+                      : undefined
+                  }
+                >
+                  <TextInput
+                    name="sellingPrice"
+                    inputMode="decimal"
+                    placeholder="40.00"
+                    value={formik.values.sellingPrice}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                  />
+                </Field>
+
+                <Field
+                  label="Opening stock"
+                  required
+                  error={
+                    formik.touched.quantity ? formik.errors.quantity : undefined
+                  }
+                  hint="Writes an initial stock-in movement"
+                >
+                  <TextInput
+                    name="quantity"
+                    type="number"
+                    min={0}
+                    value={formik.values.quantity}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                  />
+                </Field>
+
+                <Field
+                  label="Reorder level"
+                  required
+                  error={
+                    formik.touched.minimumStockLevel
+                      ? formik.errors.minimumStockLevel
+                      : undefined
+                  }
+                  hint="Alert when stock drops to this level"
+                >
+                  <TextInput
+                    name="minimumStockLevel"
+                    type="number"
+                    min={0}
+                    value={formik.values.minimumStockLevel}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                  />
+                </Field>
+
+                <Field label="Unit" hint="e.g. PAIR, UNIT, SET">
+                  <TextInput
+                    name="unit"
+                    placeholder="UNIT"
+                    value={formik.values.unit}
+                    onChange={formik.handleChange}
+                  />
+                </Field>
+              </div>
+
+              <Field label="Description">
+                <TextAreaInput
+                  name="description"
+                  placeholder="Optional notes about this part…"
+                  value={formik.values.description}
                   onChange={formik.handleChange}
+                  className="resize-none"
                 />
               </Field>
 
-              <Field label="OEM number">
-                <TextInput
-                  name="oemNumber"
-                  placeholder="04465-0K240"
-                  value={formik.values.oemNumber}
-                  onChange={formik.handleChange}
-                />
-              </Field>
-
-              <Field
-                label="Cost price"
-                required
-                error={
-                  formik.touched.costPrice ? formik.errors.costPrice : undefined
+              <Checkbox
+                name="isActive"
+                isSelected={formik.values.isActive}
+                onChange={(selected) =>
+                  formik.handleChange({
+                    target: {
+                      name: "isActive",
+                      type: "checkbox",
+                      checked: selected,
+                    },
+                  } as React.ChangeEvent<HTMLInputElement>)
                 }
+                variant="secondary"
               >
-                <TextInput
-                  name="costPrice"
-                  inputMode="decimal"
-                  placeholder="25.00"
-                  value={formik.values.costPrice}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-              </Field>
+                <Checkbox.Content className="text-black">
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  Active (available for sale)
+                </Checkbox.Content>
+              </Checkbox>
 
-              <Field
-                label="Selling price"
-                required
-                error={
-                  formik.touched.sellingPrice
-                    ? formik.errors.sellingPrice
-                    : undefined
-                }
+              <button
+                type="submit"
+                disabled={formik.isSubmitting}
+                className="flex min-h-12 items-center justify-center rounded-2xl bg-secondary px-5 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
               >
-                <TextInput
-                  name="sellingPrice"
-                  inputMode="decimal"
-                  placeholder="40.00"
-                  value={formik.values.sellingPrice}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-              </Field>
-
-              <Field
-                label="Opening stock"
-                required
-                error={
-                  formik.touched.quantity ? formik.errors.quantity : undefined
-                }
-                hint="Writes an initial stock-in movement"
-              >
-                <TextInput
-                  name="quantity"
-                  type="number"
-                  min={0}
-                  value={formik.values.quantity}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-              </Field>
-
-              <Field
-                label="Reorder level"
-                required
-                error={
-                  formik.touched.minimumStockLevel
-                    ? formik.errors.minimumStockLevel
-                    : undefined
-                }
-                hint="Alert when stock drops to this level"
-              >
-                <TextInput
-                  name="minimumStockLevel"
-                  type="number"
-                  min={0}
-                  value={formik.values.minimumStockLevel}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                />
-              </Field>
-
-              <Field label="Unit" hint="e.g. PAIR, UNIT, SET">
-                <TextInput
-                  name="unit"
-                  placeholder="UNIT"
-                  value={formik.values.unit}
-                  onChange={formik.handleChange}
-                />
-              </Field>
-            </div>
-
-            <Field label="Description">
-              <TextAreaInput
-                name="description"
-                placeholder="Optional notes about this part…"
-                value={formik.values.description}
-                onChange={formik.handleChange}
-                className="resize-none"
-              />
-            </Field>
-
-            <Checkbox
-              name="isActive"
-              isSelected={formik.values.isActive}
-              onChange={(selected) =>
-                formik.handleChange({
-                  target: {
-                    name: "isActive",
-                    type: "checkbox",
-                    checked: selected,
-                  },
-                } as React.ChangeEvent<HTMLInputElement>)
-              }
-              variant="secondary"
-            >
-              <Checkbox.Content className="text-black">
-                <Checkbox.Control>
-                  <Checkbox.Indicator />
-                </Checkbox.Control>
-                Active (available for sale)
-              </Checkbox.Content>
-            </Checkbox>
-
-            <button
-              type="submit"
-              disabled={formik.isSubmitting}
-              className="flex min-h-12 items-center justify-center rounded-2xl bg-secondary px-5 text-sm font-semibold text-white transition hover:bg-secondary/90 disabled:opacity-60"
-            >
-              {formik.isSubmitting ? "Saving…" : "Save product"}
-            </button>
+                {formik.isSubmitting ? "Saving…" : "Save product"}
+              </button>
             </form>
           </div>
         )}
